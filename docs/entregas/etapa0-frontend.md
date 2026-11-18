@@ -33,6 +33,7 @@ La tienda y el panel tienen ya cada uno su layout raíz, sus tokens y sus fuente
 - `npm run typecheck` → sin errores.
 - `npm test` → 2 archivos y 6 pruebas, todas pasan.
 - `npm run build` → el primer intento se detiene con el aviso de Next.js a agentes (el mismo de la entrega de DevOps). No ejecuté la actualización que propone. El segundo intento compila sin errores ni avisos: `○ /`, `○ /panel`, `ƒ /[...resto]`, `ƒ /panel/[...resto]`, `○ /icon.svg`, `○ /apple-icon.png`, `○ /manifest.webmanifest` y `ƒ /api/health`.
+- **GitHub Actions, ejecución 44208527648** sobre `feat/etapa0-frontend` (commit 44452f9) → **verde**: `verificar` en 1 min 47 s y `secretos` en 5 s.
 - `npm audit --omit=dev --audit-level=high` → sale con 0. Sigue el mismo hallazgo moderado de `next` 16.4.3 que ya estaba; las fuentes no suman ninguno.
 - `next start` y `curl`:
   - `/` y `/panel` → 200.
