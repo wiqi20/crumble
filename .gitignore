@@ -1,0 +1,38 @@
+# Dependencias
+/node_modules
+/.pnp
+.pnp.*
+
+# Pruebas
+/coverage
+/.vitest/
+/test-results/
+/playwright-report/
+
+# Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# Varios
+.DS_Store
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Registros
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno: nunca se suben valores reales. Solo .env.example (sin valores).
+.env*
+!.env.example
+
+# Respaldos o volcados de base que alguien deje en la carpeta por error
+*.dump
+*.sql.gz
+/respaldos/
