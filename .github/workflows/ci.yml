@@ -1,0 +1,100 @@
+# Integración continua de Crumble (Etapa 0, E0-8).
+# Corre en cada rama y en cada PR a main. Si algo falla, el PR no se puede unir
+# (cuando la protección de main exija estas dos verificaciones: "verificar" y "secretos").
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verificar:
+    name: verificar
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Postgres de servicio para las pruebas con base real (E0-6). Solo existe durante el trabajo de CI.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: crumble
+          POSTGRES_PASSWORD: solo-para-ci
+          POSTGRES_DB: crumble_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crumble -d crumble_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Base desechable del contenedor de arriba; no es un secreto.
+      TEST_DATABASE_URL: postgresql://crumble:solo-para-ci@localhost:5432/crumble_test
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Auditoría de dependencias de producción (falla con altas o críticas)
+        run: npm audit --omit=dev --audit-level=high
+
+  secretos:
+    name: secretos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      # sha256 de gitleaks_8.30.1_linux_x64.tar.gz, tomado del archivo de sumas de la versión oficial.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - name: Descargar el código con todo el historial
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Instalar gitleaks (versión fija y suma verificada)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          rm gitleaks.tar.gz
+          ./gitleaks version
+
+      - name: Buscar secretos en todo el historial de git
+        run: ./gitleaks git --redact --no-banner --exit-code 1 .
