@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Estilos base de la Etapa 0. Los tokens de la tienda (Crumble) y del panel (STI) llegan en E0-7
+   en styles/tienda.css y styles/panel.css; las dos identidades nunca se mezclan. */
