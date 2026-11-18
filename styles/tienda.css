@@ -1,0 +1,215 @@
+/*
+  Identidad de la TIENDA de Crumble (diseño UX, sección 2, en wiqi20/STICR_landingpage:
+  docs/proyectos/crumble/diseno-ux.md). Solo la carga el layout de app/(tienda).
+  Las dos identidades nunca se mezclan: este archivo no conoce los tokens del panel ni al revés.
+
+  Tailwind solo mira las carpetas de la tienda, así una clase del panel no se cuela aquí.
+*/
+@import "tailwindcss" source(none);
+@source "../app/(tienda)";
+@source "../components/tienda";
+@source "../components/comunes";
+
+/*
+  Respaldo para el signo del colón (₡, U+20A1). Ni Jost ni Marcellus lo traen (comprobado en sus
+  archivos de @fontsource 5.3.0). Subconjunto de UN solo carácter de League Spartan (OFL 1.1, geométrica
+  como Jost), variable de 100 a 900 para que siga el peso del texto. Ver styles/fuentes/LEEME.md.
+  Por unicode-range, el navegador solo lo descarga si la página muestra un ₡.
+*/
+@font-face {
+  font-family: "Colon League Spartan";
+  src: url("./fuentes/colon-league-spartan.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20A1;
+}
+
+@theme {
+  /* Sin la paleta, las fuentes ni los cortes por defecto de Tailwind: solo los de Crumble. */
+  --color-*: initial;
+  --font-*: initial;
+  --breakpoint-*: initial;
+
+  /* Color (diseño UX 2.1). El rosa nunca es texto ni única señal. */
+  --color-blanco: #ffffff;
+  --color-tinta: #1b1717;
+  --color-tinta-suave: #5f5757;
+  --color-rosa: #f8dcdd;
+  --color-rosa-claro: #fdf4f4;
+  --color-linea: #e9e3e3;
+  --color-linea-fuerte: #8a8181;
+  --color-error: #a12b2b;
+  --color-error-fondo: #fbeded;
+  --color-exito: #2c6a4b;
+
+  /* Tipografía (diseño UX 2.2): Marcellus para títulos, Jost para todo lo demás. */
+  --font-titulo: "Marcellus", "Colon League Spartan", Georgia, "Times New Roman", serif;
+  --font-texto: "Jost Variable", "Colon League Spartan", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-texto);
+
+  /* Escala. Los títulos crecen con el ancho entre 360 y 1440 px. */
+  --text-portada: clamp(2.25rem, 1.5rem + 3.3333vw, 4.5rem); /* 36 → 72 */
+  --text-portada--line-height: 1.05;
+  --text-h1: clamp(1.875rem, 1.5rem + 1.6667vw, 3rem); /* 30 → 48 */
+  --text-h1--line-height: 1.1;
+  --text-h2: clamp(1.625rem, 1.3333rem + 1.2963vw, 2.5rem); /* 26 → 40 */
+  --text-h2--line-height: 1.15;
+  --text-h3: 1.25rem; /* 20 */
+  --text-h3--line-height: 1.3;
+  --text-grande: 1.125rem; /* 18 */
+  --text-grande--line-height: 1.55;
+  --text-texto: var(--t-texto); /* 16, 17 desde 1440, 18 desde 1920 */
+  --text-texto--line-height: 1.6;
+  --text-chico: 0.875rem; /* 14 */
+  --text-chico--line-height: 1.5;
+  --text-micro: 0.75rem; /* 12, en mayúsculas */
+  --text-micro--line-height: 1.4;
+  --text-micro--letter-spacing: 0.12em;
+
+  /* Radios (diseño UX 2.3) */
+  --radius-campo: 6px;
+  --radius-tarjeta: 14px;
+  --radius-pildora: 999px;
+
+  /* Cortes (diseño UX 3): 360 es la base; 768, 1024, 1440 y 1920 */
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 120rem;
+}
+
+/*
+  Los mismos tokens con los nombres del diseño UX (--c-*, --t-*, --r-*), para CSS escrito a mano.
+  La fuente de verdad es el bloque @theme de arriba.
+*/
+:root {
+  --c-blanco: var(--color-blanco);
+  --c-tinta: var(--color-tinta);
+  --c-tinta-suave: var(--color-tinta-suave);
+  --c-rosa: var(--color-rosa);
+  --c-rosa-claro: var(--color-rosa-claro);
+  --c-linea: var(--color-linea);
+  --c-linea-fuerte: var(--color-linea-fuerte);
+  --c-error: var(--color-error);
+  --c-error-fondo: var(--color-error-fondo);
+  --c-exito: var(--color-exito);
+
+  --t-portada: var(--text-portada);
+  --t-h1: var(--text-h1);
+  --t-h2: var(--text-h2);
+  --t-h3: var(--text-h3);
+  --t-grande: var(--text-grande);
+  --t-texto: 1rem;
+  --t-chico: var(--text-chico);
+  --t-micro: var(--text-micro);
+
+  --r-campo: var(--radius-campo);
+  --r-tarjeta: var(--radius-tarjeta);
+  --r-pildora: var(--radius-pildora);
+
+  /* Margen lateral y ancho máximo del contenido (diseño UX 3) */
+  --margen-lateral: 16px;
+  --ancho-maximo: 100%;
+
+  color-scheme: light;
+}
+
+@media (width >= 48rem) {
+  :root {
+    --margen-lateral: 32px;
+  }
+}
+
+@media (width >= 64rem) {
+  :root {
+    --margen-lateral: 40px;
+    --ancho-maximo: 1200px;
+  }
+}
+
+@media (width >= 90rem) {
+  :root {
+    --margen-lateral: 48px;
+    --ancho-maximo: 1280px;
+    --t-texto: 1.0625rem;
+  }
+}
+
+@media (width >= 120rem) {
+  :root {
+    --ancho-maximo: 1440px;
+    --t-texto: 1.125rem;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--color-blanco);
+    color: var(--color-tinta);
+    font-family: var(--font-texto);
+    font-size: var(--t-texto);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-titulo);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+
+  /* Foco: contorno de 2 px en tinta, separado 3 px (diseño UX 2.3) */
+  :focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: var(--color-rosa);
+    color: var(--color-tinta);
+  }
+}
+
+/* Contenedor de página: margen lateral y ancho máximo según el corte, centrado. */
+@utility contenedor {
+  width: 100%;
+  max-width: calc(var(--ancho-maximo) + 2 * var(--margen-lateral));
+  margin-inline: auto;
+  padding-inline: var(--margen-lateral);
+}
+
+/* Rótulo pequeño en mayúsculas (12 px) */
+@utility rotulo {
+  font-size: var(--text-micro);
+  line-height: var(--text-micro--line-height);
+  letter-spacing: var(--text-micro--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Precios con cifras tabulares */
+@utility cifras {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

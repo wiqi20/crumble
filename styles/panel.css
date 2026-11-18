@@ -1,0 +1,186 @@
+/*
+  Identidad del PANEL: el sistema de diseño de STI sin cambios (docs/DESIGN.md y app/globals.css de
+  wiqi20/STICR_landingpage), más --surface-error (#f8eaea), aprobado para filas y bloques de error
+  (diseño UX de Crumble, sección 10). Solo la carga el layout de app/(panel).
+  Las dos identidades nunca se mezclan: este archivo no conoce los tokens de la tienda ni al revés.
+
+  Tailwind solo mira las carpetas del panel, así una clase de la tienda no se cuela aquí.
+*/
+@import "tailwindcss" source(none);
+@source "../app/(panel)";
+@source "../components/panel";
+@source "../components/comunes";
+
+/*
+  Respaldo para el signo del colón (₡, U+20A1). Ni Onest ni JetBrains Mono lo traen (comprobado en sus
+  archivos de @fontsource). Subconjuntos de UN solo carácter (OFL 1.1): Inter para el texto y
+  Noto Sans Mono para cifras y montos. Ver styles/fuentes/LEEME.md.
+  Por unicode-range, el navegador solo los descarga si la página muestra un ₡.
+*/
+@font-face {
+  font-family: "Colon Inter";
+  src: url("./fuentes/colon-inter.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20A1;
+}
+
+@font-face {
+  font-family: "Colon Noto Sans Mono";
+  src: url("./fuentes/colon-noto-sans-mono.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+20A1;
+}
+
+@theme {
+  /* Sin la paleta, las fuentes ni los cortes por defecto de Tailwind: solo los de STI. */
+  --color-*: initial;
+  --font-*: initial;
+  --breakpoint-*: initial;
+
+  /* Colores (DESIGN.md, iguales a app/globals.css de sticr.app) */
+  --color-deep-ink: #0a090c;
+  --color-near-black-green: #031403;
+  --color-bone-white: #e6e6e5;
+  --color-paper-white: #ffffff;
+  --color-frost: #f4f4f4;
+  --color-stone: #8a8a8a;
+  --color-slate: #696969;
+  --color-ash: #777777;
+  --color-dust: #d1d5db;
+  --color-cinder: #2d2d2d;
+  --color-smoke: #5a5a5a;
+  --color-iron: #404040;
+  --color-iris: #7561b1;
+  --color-coastal-teal: #96beca;
+  --color-slate-blue: #74a9b9;
+  --color-amber-glow: #f4b811;
+  --color-moss: #9db161;
+  --color-lilac-mist: #ccc6df;
+  --color-pale-aqua: #d5e8ed;
+  --color-sand-sage: #dfe4d1;
+  --color-faded-aqua: #b4cfd7;
+  --color-dusk: #3a344b;
+  --color-error: #a63232;
+
+  /* Superficies (DESIGN.md, "Surfaces"), también como colores de Tailwind: bg-surface-error, etc. */
+  --color-surface-canvas: #e6e6e5;
+  --color-surface-paper: #ffffff;
+  --color-surface-frost: #f4f4f4;
+  --color-surface-tinted-wash: #dfe4d1;
+  --color-surface-lilac-mist: #e7e5ee;
+  /* Nuevo y aprobado: fondo de filas y bloques de error. Con --color-error da 5,9:1. */
+  --color-surface-error: #f8eaea;
+
+  /* Tipografía */
+  --font-sans: "Onest", "Colon Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Colon Noto Sans Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+
+  /* Escala (DESIGN.md, "Type Scale") */
+  --text-micro: 11px;
+  --text-micro--line-height: 1.55;
+  --text-caption: 13px;
+  --text-caption--line-height: 1.5;
+  --text-body-sm: 16px;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 18px;
+  --text-body--line-height: 1.45;
+  --text-subheading: 20px;
+  --text-subheading--line-height: 1.33;
+  --text-subheading--letter-spacing: -0.2px;
+  --text-heading-sm: 24px;
+  --text-heading-sm--line-height: 1.25;
+  --text-heading-sm--letter-spacing: -0.24px;
+  --text-heading: 30px;
+  --text-heading--line-height: 1.2;
+  --text-heading--letter-spacing: -0.3px;
+  --text-heading-lg: 36px;
+  --text-heading-lg--line-height: 1.13;
+  --text-heading-lg--letter-spacing: -0.36px;
+  --text-display: 48px;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.48px;
+
+  /* Radios: 5 px (botones, etiquetas, campos), 8 px (tarjetas), 14 px (tarjetas grandes) */
+  --radius-sm: 1px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-xl: 14px;
+
+  /* Sombras: el sistema es plano; solo estas */
+  --shadow-sm: rgba(0, 0, 0, 0.2) 0px 2px 5px 0px;
+  --shadow-subtle: rgba(10, 9, 12, 0.03) 0px 1px 3px 0px;
+  --shadow-lg: rgba(117, 97, 177, 0.063) 0px 4px 20px 0px;
+
+  /* Cortes: los mismos que la tienda (barra lateral desde 1024, más ancha desde 1440) */
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 90rem;
+  --breakpoint-2xl: 120rem;
+}
+
+/* Los nombres de superficie de DESIGN.md (--surface-*), para CSS escrito a mano. */
+:root {
+  --surface-canvas: var(--color-surface-canvas);
+  --surface-paper: var(--color-surface-paper);
+  --surface-frost: var(--color-surface-frost);
+  --surface-tinted-wash: var(--color-surface-tinted-wash);
+  --surface-lilac-mist: var(--color-surface-lilac-mist);
+  --surface-error: var(--color-surface-error);
+
+  color-scheme: light;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--color-bone-white);
+    color: var(--color-deep-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Títulos en peso 300: el sello del sistema */
+  h1,
+  h2,
+  h3 {
+    font-weight: 300;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-deep-ink);
+    outline-offset: 2px;
+  }
+}
+
+/* Cifras, montos y códigos en monoespaciada (DESIGN.md) */
+@utility cifra {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.057em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
