@@ -94,6 +94,22 @@ describe.skipIf(!SERVIDOR)("servidor real: enrutado por Host y cabeceras", () =>
     }
   });
 
+  it("regresión: en una dirección conocida las páginas las arma la app, no el 404 propio del proxy", async () => {
+    // Defecto encontrado el 17 nov: la reescritura armada con peticion.url apuntaba al origen
+    // local del proceso, Next.js la trataba como externa y volvía a entrar sin el Host del panel.
+    for (const [host, ruta] of [
+      ["panel.prueba.local", "/"],
+      ["panel.prueba.local", "/pedidos"],
+      ["tienda.prueba.local", "/panel"],
+      ["tienda.prueba.local", "/no-existe"],
+    ]) {
+      const r = await pedir(host, ruta);
+      expect(r.cuerpo, `${host}${ruta}`).not.toContain('data-origen="proxy"');
+    }
+    // El 404 propio del proxy queda solo para un Host desconocido.
+    expect((await pedir("otro.sticr.app", "/")).cuerpo).toContain('data-origen="proxy"');
+  });
+
   it("estado del pedido: Referrer-Policy no-referrer", async () => {
     const r = await pedir("tienda.prueba.local", "/pedido/un-token");
     expect(r.cabeceras["referrer-policy"]).toBe("no-referrer");

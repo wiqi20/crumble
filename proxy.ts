@@ -30,10 +30,22 @@ function noEncontrado(api: boolean, id: string): NextResponse {
     ? respuestaPropia(404, JSON.stringify({ error: "no-encontrado", mensaje: "No encontramos lo que buscas." }), "application/json", id)
     : respuestaPropia(
         404,
-        '<!doctype html><html lang="es-CR"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>No encontrado</title></head><body><h1>No encontramos esta página</h1></body></html>',
+        '<!doctype html><html lang="es-CR"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>No encontrado</title></head><body data-origen="proxy"><h1>No encontramos esta página</h1></body></html>',
         "text/html; charset=utf-8",
         id,
       );
+}
+
+/**
+ * Destino de una reescritura INTERNA: se parte de nextUrl (no de peticion.url, que en el servidor
+ * real trae la dirección local del proceso; con otro origen Next.js la trata como externa y la
+ * vuelve a pedir sin el Host de la instalación).
+ */
+function rutaInterna(peticion: NextRequest, ruta: string, conservarConsulta: boolean) {
+  const destino = peticion.nextUrl.clone();
+  destino.pathname = ruta;
+  if (!conservarConsulta) destino.search = "";
+  return destino;
 }
 
 export function proxy(peticion: NextRequest): NextResponse {
@@ -64,7 +76,7 @@ export function proxy(peticion: NextRequest): NextResponse {
     // se reescribe a una carpeta privada ("_"), que Next.js nunca sirve. Host desconocido o API:
     // respuesta propia, sin la marca de la tienda.
     if (decision.hostConocido && !decision.api) {
-      const r = NextResponse.rewrite(new URL(RUTA_NO_ENCONTRADA[decision.superficie ?? "tienda"], peticion.url));
+      const r = NextResponse.rewrite(rutaInterna(peticion, RUTA_NO_ENCONTRADA[decision.superficie ?? "tienda"], false));
       r.headers.set("X-Id-Peticion", id);
       if (decision.superficie === "panel" || config.modoDemo) r.headers.set("X-Robots-Tag", "noindex, nofollow");
       return r;
@@ -76,9 +88,7 @@ export function proxy(peticion: NextRequest): NextResponse {
   cabecerasPeticion.set(CABECERA_ID, id);
   let r: NextResponse;
   if (decision.tipo === "reescribir") {
-    const destino = new URL(decision.ruta, peticion.url);
-    destino.search = peticion.nextUrl.search;
-    r = NextResponse.rewrite(destino, { request: { headers: cabecerasPeticion } });
+    r = NextResponse.rewrite(rutaInterna(peticion, decision.ruta, true), { request: { headers: cabecerasPeticion } });
   } else {
     r = NextResponse.next({ request: { headers: cabecerasPeticion } });
   }
