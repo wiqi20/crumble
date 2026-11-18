@@ -38,7 +38,7 @@ En `/home/claude/crumble` y además en un clon limpio de la rama (`npm ci` desde
 - Que el CI se ponga en rojo (simulado en local en el clon): un error de tipos hace fallar `typecheck` (salida 2); una prueba rota hace fallar `npm test` (salida 1); un token falso con forma de token de GitHub en un commit hace fallar gitleaks (salida 1, "leaks found: 1"). Ese commit de prueba se descartó y nunca salió del clon temporal.
 - gitleaks 8.30.1 sobre todo el historial real de `wiqi20/crumble`, incluido el commit de esta entrega → "no leaks found"; además, archivo por archivo antes del commit → sin hallazgos.
 - El YAML del flujo se validó con un analizador.
-- **No pude ver la ejecución en GitHub Actions:** el token de `gh` de esta sesión no es válido y el repositorio es privado. Hay que mirar la pestaña Actions de la rama `feat/etapa0-esqueleto` para confirmar que los dos trabajos quedaron en verde.
+- **GitHub Actions, ejecución 44206070795 sobre `feat/etapa0-esqueleto`** (commit 37e3f0c) → **verde**: `verificar` en 1 min 23 s y `secretos` en 12 s. En el registro: Node 22.23.4 y npm 10.9.9; pruebas "1 passed"; build "Compiled successfully" con `ƒ /api/health` y sin el aviso de Next a agentes; auditoría de producción con "1 moderate severity vulnerability" (no falla porque el nivel es alto); "gitleaks.tar.gz: OK" (suma verificada), "4 commits scanned", "no leaks found". GitHub anota que `ubuntu-latest` pasa a Ubuntu 26 desde el 19 oct 2026; no afectó.
 
 ## Decisiones tomadas
 - **Versiones exactas** (sin `^`) en `package.json`, como pide 11.1. Son las mismas que resuelve el `package-lock.json` de sticr.app en `origin/main`.
@@ -50,8 +50,8 @@ En `/home/claude/crumble` y además en un clon limpio de la rama (`npm ci` desde
 - `/api/health` responde `{"ok":true}` como pidió el encargo. E0-4 lo cambia a la forma `estado` del diseño; quien lo cambie actualiza la prueba.
 
 ## Pendientes y riesgos
-- **Protección de `main` (parte de E0-8):** no la activé. Es un ajuste del repositorio que necesita permisos de administrador, y no tengo un token válido. Propuesta: el dueño la activa en GitHub (Settings → Branches o Rulesets): cambios solo por PR, verificaciones obligatorias `verificar` y `secretos`, sin empujes forzados ni borrado. Conviene hacerlo **después** de que el CI haya corrido una vez, para que GitHub ofrezca esos nombres.
-- **Criterio de E0-8 en GitHub:** "un PR con error de tipos o prueba rota queda en rojo" lo comprobé en local, no en GitHub. Se cierra con el primer PR real, o con un PR de prueba si el Project Manager lo pide.
+- **Protección de `main` (parte de E0-8):** no la activé. Es un cambio de la configuración del repositorio que no estaba en el encargo y conviene que lo decida el dueño. Propuesta: el dueño la activa en GitHub (Settings → Branches o Rulesets): cambios solo por PR, verificaciones obligatorias `verificar` y `secretos`, sin empujes forzados ni borrado. Conviene hacerlo **después** de que el CI haya corrido una vez, para que GitHub ofrezca esos nombres.
+- **Criterio de E0-8 en GitHub:** el caso limpio en verde está comprobado en GitHub (ejecución 44206070795, por `push`). El caso rojo ("un PR con error de tipos o prueba rota queda en rojo") lo comprobé en local, no en GitHub, porque no se pidió abrir PR. Se cierra con el primer PR real, o con un PR de prueba si el Project Manager lo pide.
 - **`npm audit` de producción: 1 moderado en `next` 16.4.3** (avisos GHSA-mfr8-8qww-v76h y GHSA-vc7v-qv4w-wrv8, filtración de caché entre parámetros raíz con `'use cache'` y `unstable_cache`). Según npm, se corrige en 16.4.6. Hoy no usamos `'use cache'`. No bloquea (no es alto ni crítico), pero 11.1 pide la misma versión que el sitio: **decisión del Project Manager** si se sube a la vez en sticr.app y en Crumble.
 - **`npm audit` completo (desarrollo): 11 altos y 7 moderados** en herramientas que no van en el servidor de producción (`picomatch`, `vite`, `vitest`, `eslint-config-next`, `typescript-eslint`, entre otros; ReDoS y similares). Mismo árbol que el sitio. Se anota; no bloquea según `seguridad.md`.
 - **Aviso de Next.js a agentes:** dentro de una sesión de agente, el primer `next build` (y `next dev`) se detiene con un aviso para actualizar Next.js y pide volver a correr el comando; la segunda vez sigue. En GitHub Actions no pasa (lo comprobé con un entorno limpio). Ese aviso también trae instrucciones para que el agente ejecute una actualización; no la ejecuté, porque cambiar la versión de Next.js no estaba en el encargo y la versión está fijada a propósito. Recomiendo que ningún agente la ejecute por su cuenta.
@@ -59,7 +59,7 @@ En `/home/claude/crumble` y además en un clon limpio de la rama (`npm ci` desde
 
 ## Preguntas para el Project Manager
 - ¿Se sube `next` a 16.4.6 (o la que corrija los avisos) a la vez en sticr.app y en Crumble, o se deja en 16.4.3 hasta otra ronda?
-- ¿El dueño activa la protección de `main` con las verificaciones `verificar` y `secretos`, o me da un token con permiso de administración del repositorio para hacerlo?
+- ¿El dueño activa la protección de `main` con las verificaciones `verificar` y `secretos`, o me autoriza a hacerlo yo?
 - Las entregas de Crumble, ¿se quedan en `docs/entregas/` de este repositorio (donde está esta) o se copian a `docs/proyectos/crumble/` de STICR_landingpage? Es la pregunta abierta de 11.2.
 - La tabla 5.7 del diseño técnico dice "no hay variables nuevas", pero el estándar de soporte suma `SOPORTE_URL`, `SOPORTE_ORIGEN` y `SOPORTE_SECRETO`. Ya están en `.env.example`; falta que el Arquitecto actualice 5.7.
 
