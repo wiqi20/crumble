@@ -97,3 +97,15 @@ La tienda y el panel tienen ya cada uno su layout raíz, sus tokens y sus fuente
   - `tests/servidor` contra `npm run start`: 10 de 10.
   - Playwright por cabecera Host (tienda y panel, a 390 y 1440 px): sin desbordes, `lang="es-CR"`, fuentes propias y cero peticiones externas.
 - Hallazgo menor para QA y SEO: en los 404, el HTML trae el título correcto ("No encontramos esta página · …"), pero en el navegador `document.title` queda con el título por defecto del layout después de cargar.
+
+## Corrección de QA-E0-01 (19 nov 2026)
+- **Defecto:** en los 404, el HTML traía el título correcto, pero al hidratar, React lo cambiaba por el del layout.
+- **Causa:** las rutas comodín `[...resto]` no declaraban título. Al hidratar, el cliente usaba el de la ruta (el del layout) y no el de `not-found.tsx`.
+- **Arreglo:** `app/(tienda)/[...resto]/page.tsx` y `app/(panel)/panel/[...resto]/page.tsx` exportan `metadata` con el mismo título que el `not-found` de su lado. Ahora `document.title` queda en «No encontramos esta página · Crumble cake store» en la tienda y en «No encontramos esta página · Panel de Crumble» en el panel.
+- Se trae a esta rama la prueba de QA `e2e/qa-etapa0/revision.mjs` (de `docs/qa-etapa0`).
+- **Comprobado:**
+  - lint y tipos sin errores.
+  - `npm test` con un Postgres 16 desechable: 121 pasan y 10 se omiten.
+  - `npm run build` compila al segundo intento, por el aviso de Next.js a agentes; no se actualizó Next.js.
+  - `tests/servidor`: 10 de 10.
+  - `node e2e/qa-etapa0/revision.mjs` contra `npm run start`: 28 páginas y `"fallas": []`, sale con 0.
