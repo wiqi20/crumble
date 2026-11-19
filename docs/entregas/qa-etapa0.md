@@ -2,7 +2,7 @@
 
 - **Fecha:** 19 nov 2026
 - **Rama / archivos:** se probó `feat/etapa0` en el commit `9c40f62` de `wiqi20/crumble`. El informe y la prueba nueva están en la rama `docs/qa-etapa0`: `docs/entregas/qa-etapa0.md` y `e2e/qa-etapa0/revision.mjs`. No se cambió código de la aplicación.
-- **Veredicto** (solo revisores): **APROBADO** para lo construido en E0-1 a E0-8. Queda un defecto medio (QA-E0-01) y ninguno bloqueante ni alto. **La Etapa 0 no se puede dar por terminada todavía:** E0-9 (Railway y respaldo) y la protección de `main` (parte de E0-8) siguen pendientes, y no son trabajo de QA (ver «Pendientes y riesgos»).
+- **Veredicto** (solo revisores): **APROBADO** para lo construido en E0-1 a E0-8. En la re-prueba del 19 nov sobre `5495105` (ver «Re-prueba») QA-E0-01 queda **corregido** y no hay defectos abiertos. En la primera vuelta quedaba un defecto medio (QA-E0-01) y ninguno bloqueante ni alto. **La Etapa 0 no se puede dar por terminada todavía:** E0-9 (Railway y respaldo) y la protección de `main` (parte de E0-8) siguen pendientes, y no son trabajo de QA (ver «Pendientes y riesgos»).
 
 ## Resumen
 Probé la rama integrada de la Etapa 0 en una máquina limpia (`npm ci`), con un Postgres 16 desechable, un servidor real (`next build` y `next start`) y Chromium con Playwright. Hice todas las peticiones con la cabecera `Host` de la tienda y del panel. Lint, tipos, pruebas y build pasan, y el CI de GitHub está en verde para este commit. Las migraciones son repetibles. Las dos identidades se ven con sus fuentes propias, sin peticiones a otros dominios y sin desbordes de 360 a 1920 px. axe no encuentra fallas y el teclado funciona. Confirmé el hallazgo de Frontend sobre el título de los 404 y lo reporto como defecto medio. Intenté llegar al panel desde la tienda con unas 30 variantes de ruta, `Host` y RSC, y ninguna lo consiguió.
@@ -98,7 +98,7 @@ Todavía no hay sesiones ni rutas de `/api/admin`, así que en esta etapa el ais
 
 ## Defectos
 
-### QA-E0-01 · En los 404, el título de la pestaña vuelve al del layout · **Medio** · Abierto
+### QA-E0-01 · En los 404, el título de la pestaña vuelve al del layout · **Medio** · Corregido en `a695711` (verificado en la re-prueba)
 - **Pasos:**
   1. Arrancar `npm run start` con `URL_TIENDA=https://tienda.prueba.local` y `URL_PANEL=https://panel.prueba.local`.
   2. En Chromium, abrir `https://tienda.prueba.local/no-existe-qa` (o la del panel) con la cabecera Host, como hace `e2e/qa-etapa0/revision.mjs`.
@@ -128,10 +128,56 @@ Todavía no hay sesiones ni rutas de `/api/admin`, así que en esta etapa el ais
 - **Inserté el ₡ en la página**, porque ninguna lo muestra todavía, y verifiqué qué fuente lo dibuja de verdad con CDP, no por el CSS declarado.
 - **Veredicto APROBADO** para lo construido: no aplica ningún flujo crítico de un sistema vendido (demo, compra, pago, suspensión, sesión), no hay defectos bloqueantes ni altos, y los cuatro comandos pasan. Que la etapa esté **terminada** lo decide el Project Manager con lo pendiente de E0-8 y E0-9.
 
+## Re-prueba (19 nov 2026, `feat/etapa0` en `5495105`)
+
+**Veredicto: APROBADO.** QA-E0-01 está corregido y no se rompió nada. La re-prueba cubrió el área completa de la tienda, el panel, la API y el enrutado, no solo el defecto. Los cambios de Backend del proxy (`153613a`, `daaf602`, `5be718d` y `2eca36f`) también se comprobaron. Siguen pendientes E0-9 y la protección de `main`, que no son trabajo de QA.
+
+Entorno: la rama `docs/qa-etapa0` con `origin/feat/etapa0` unida sin conflictos, `npm ci` limpio, un Postgres 16 desechable nuevo (127.0.0.1, puerto 55847, `/var/lib/postgresql/qa-e0r-crumble-5c2e`) y `next start` en el puerto 3931.
+
+| Comprobación | Resultado |
+| --- | --- |
+| `npm run lint`, `npm run typecheck` y `npx tsc --noEmit` | Salida 0 |
+| `npm test` (dos corridas) | 9 archivos, **129 pasan** y 13 se omiten (las de servidor real), igual en las dos corridas |
+| `npm audit --omit=dev --audit-level=high` | Salida 0. Sigue el moderado conocido de `next` 16.4.3 |
+| `npm run migrate` dos veces sobre una base vacía | Aplica `001_base.sql` y después «Nada que migrar». El esquema es idéntico |
+| `npm run build` | El primer intento se detiene con el aviso de Next.js a agentes (no ejecuté la actualización). El segundo compila sin errores |
+| `tests/servidor` contra `next start` | **13 de 13** |
+| `e2e/qa-etapa0/revision.mjs` (28 páginas: tienda y panel, portada y 404, a 360, 390, 768, 1024, 1280, 1440 y 1920 px) | **Sale con 0, sin fallas.** Ver detalle abajo |
+| GitHub Actions, ejecución 44503988694 sobre `5495105` | `verificar` y `secretos` en verde |
+
+Detalle de la revisión con Playwright:
+- **Títulos (QA-E0-01):** el título que queda en la pestaña es igual al del HTML en las 28 combinaciones. En los 404: «No encontramos esta página · Crumble cake store» y «No encontramos esta página · Panel de Crumble».
+- **Navegación del cliente:** `router.push` de `/panel`, `/Panel` y `/%70anel` en la tienda muestra el 404 con su título correcto.
+- **Lo demás no cambió:**
+  - estados 200 y 404, y `lang="es-CR"`;
+  - ningún desborde y **ninguna petición externa**;
+  - fuentes propias, y el ₡ con su respaldo en texto y cifras;
+  - **axe: 0 violaciones** y 0 casos sin resolver;
+  - teclado y foco visible en 12 recorridos (390, 1280 y 1440 px);
+  - favicon e íconos con 200 y su tipo, y dibujados a 16 y 32 px;
+  - Host desconocido: 404 del proxy con `lang="es-CR"`.
+- **Botones de los 404:** con clic y con Enter llevan al inicio del panel y a la portada de la tienda.
+
+Cambios de Backend comprobados contra el servidor real:
+- **Panel sin caché:** `/` y un 404 del panel responden `Cache-Control: private, no-store, max-age=0` y `X-Robots-Tag: noindex, nofollow`. La portada de la tienda sigue en caché (`s-maxage`).
+- **Codificación inválida:** `/%zz`, `/%E0%A4%A` y `/api/%zz` dan 404 JSON `no-encontrado`, en la tienda y en el panel.
+- **Host con puerto estándar:** `tienda…:443` y `tienda…:80` sirven la tienda, y `panel…:443` el panel. Con `tienda…:443`, `/panel` y `/api/admin/x` siguen en 404. Un puerto no estándar (`:8443`) da el 404 del proxy. Esto cierra la observación sobre el Host con puerto.
+- **Sondeo de ataque repetido:** todas las rutas de la primera vuelta dan 404 desde la tienda, y ninguna respuesta trae contenido del panel. Probé:
+  - `/panel`, `/_next/../panel`, `/api/../panel`, `/./panel`, `/(panel)/panel` y `/_no-encontrado`;
+  - `/%2fpanel`, `/panel%2f`, `/%5cpanel`, `/%2570anel` y `/panel;x`;
+  - `x-middleware-subrequest`;
+  - `/api/admin%2fx` y `/api/ADMIN/x`.
+
+  `X-Forwarded-Host` del panel se sigue ignorando. `/api/health` responde `{"estado":"ok"}` por los dos Host.
+
+Observación nueva (bajo, no es defecto): una ruta de **página** con codificación inválida (`/%zz` en la tienda) da 404 en JSON y no en HTML. Es lo que decidió Backend y solo lo ve quien escribe mal una dirección a mano. Lo anoto por si Frontend o SEO prefieren el 404 con la marca de cada lado.
+
+No probé, igual que en la primera vuelta: Firefox, Safari, un lector de pantalla real, la pestaña en modo oscuro y gitleaks en local (pasó en el CI). Capturas y `resultados.json` de esta vuelta: `/tmp/claude-0/-home-claude/82513ab1-1ca9-5a1a-8c7b-4c1a5cd4d83f/scratchpad/qa-r-capturas/`.
+
 ## Pendientes y riesgos
 - **E0-9 sin hacer:** no hay servicios en Railway, `/api/health` desplegado ni respaldo restaurado. Hasta entonces no se cumple «Terminado de la etapa 0». Cuando existan, conviene correr `tests/servidor` y `e2e/qa-etapa0/revision.mjs` contra el servicio desplegado (por el `Host` con puerto y por el aviso de Backend sobre `next start -H`).
 - **E0-8:** falta activar la protección de `main` (decisión del dueño, según DevOps) y ver en GitHub un PR en rojo.
-- **QA-E0-01 abierto:** cuando Frontend lo corrija, repito la revisión completa de la tienda y el panel, no solo el título.
+- **QA-E0-01:** corregido y verificado en la re-prueba.
 - **No probé:**
   - Firefox, Safari ni un lector de pantalla real;
   - la pestaña real del navegador en modo oscuro;
