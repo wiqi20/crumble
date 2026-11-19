@@ -188,3 +188,28 @@ Redirecciones: las 307 y 308 de Next van a rutas relativas, así que no hay redi
 
 ## Dependencias nuevas
 - Ninguna. Seguridad no agrega dependencias. gitleaks 8.30.1 se usó como binario temporal con suma verificada, fuera del repositorio.
+
+## Verificación de correcciones (19 nov 2026, `feat/etapa0` en `5495105`)
+
+**Veredicto de la verificación: APROBADO.** M3, M4, B1, B5 y B6 están corregidos, y no encontré regresiones. **M1 (repositorio público) y M2 (`main` sin protección) siguen abiertos y siguen siendo del dueño.** El 19 nov a las 04:19 la API de GitHub sigue dando `visibility: public` y `protected: false`. Siguen siendo condición antes de E0-9, igual que en el veredicto inicial. M5 y M6 quedan como estaban: los cambios no los tocan.
+
+Revisé solo los cambios desde `9c40f62`: `a695711`, `153613a`, `daaf602`, `5be718d`, `2eca36f`, `0396be7` y `5495105`. Usé un worktree propio y un Postgres 16 desechable en un puerto único. No ejecuté `next upgrade`.
+
+| Hallazgo | Estado | Evidencia |
+| --- | --- | --- |
+| M4 (panel en caché) | **Corregido** | `Cache-Control: private, no-store, max-age=0` en el panel con todas las variantes de Host (minúsculas, mayúsculas, punto final, `:443`, `:80`, `.:443`), con `RSC: 1`, `Next-Router-Prefetch`, `Next-Router-Segment-Prefetch`, `?_rsc=`, sufijos `.rsc` (`/.rsc`, `/index.rsc`, `/panel.rsc`), HEAD, 404 de página y de RSC, `/panel`, `/api/health`, `/api/admin/x`, POST a `/api/nada`, `favicon.ico`, `icon.svg` y el manifiesto. El `no-store` gana sobre el `s-maxage` de lo prerenderizado (`x-nextjs-cache: HIT` con `no-store`). Los Host con puerto no estándar (`:8443`, `:0443`, `:443:443`) dan 404 del proxy con `no-store`. La tienda conserva su caché (`s-maxage`), como pide 5.2. |
+| B1 (codificación inválida) | **Corregido** | `/%`, `/%E0%A4%A`, `/panel/%ZZ` y `/api/%`, en la tienda, el panel y un Host desconocido → 404 JSON `no-encontrado` con `no-store`. El registro del servidor no tiene ninguna línea `failed to decode`. |
+| Host con `:443`/`:80` | **Correcto** | Se normaliza al Host de la instalación. Cualquier otro puerto sigue siendo un Host desconocido (404). |
+| M3 (revisor de rutas) | **Corregido** | Pasan los casos nuevos de `tests/permisos/ejemplos/`. Además ataqué el revisor con una `app` propia, fuera del repositorio, con seis rutas sin puerta: `app/api/[[...x]]`, `app/(x)/[p]/exportar`, `app/panel/route.ts` (sin grupo), `app/[a]/[b]`, `app/(panel)/panel/(g)/csv` y `app/api/admin/js/route.js`. **Las detectó todas.** `buscarServerActions` detecta `'use server'` con comillas simples, después de un comentario y dentro de una función flecha. Nota menor: `/api/Admin/...` (mayúscula) no se revisa, porque Next.js distingue mayúsculas y esa ruta sería otra ruta pública de `/api`, no del panel. |
+| B5 (guarda de la base de pruebas) | **Corregido** | Rechaza `postgresql:///x_test`, `postgresql://@/x_test`, `[::1]`, `localhost.evil.example` y `?host=`. Acepta solo `localhost` y `127.0.0.1` explícitos. |
+| B6 (CI) | **Corregido** | `runs-on: ubuntu-26.04`; `postgres:16@sha256:3950ad7c…`; nuevo paso `next start` + `tests/servidor` con secretos al azar en cada ejecución, que falla si el servidor registra errores. Las acciones siguen fijadas por SHA (`checkout` = v7.0.1, comprobado con `git ls-remote`). Ejecución 44503988694 sobre `5495105` → `success`. |
+| B2 (`x-middleware-rewrite`) | Aceptado como informativo | Backend documenta que Next.js no permite quitarla desde el proxy. No da acceso a nada. |
+| QA-E0-01 (`a695711`) | Sin efecto en seguridad | Solo agrega `metadata.title` a los comodines 404. |
+
+**Ataques del enrutado repetidos sobre `5495105`.** Volví a probar `/panel` en la tienda con las mismas 20 variantes de ruta y las 5 cabeceras internas de Next.js de la primera revisión. Ninguna muestra el panel: todas dan 404 o 308 relativo con la identidad de la tienda. Con los sufijos RSC (`/panel.rsc`, `/panel.prefetch.rsc`, `/panel.segments/_tree.segment.rsc`, `/panel/x.rsc`), la tienda responde con el 404 de su propio comodín `[...resto]` en formato RSC (estado 200, sin caché). No aparece ningún contenido del panel: el árbol devuelto es `(tienda)` → `resto`.
+
+**Calidad**
+- `npm ci`, lint y tipos → limpios.
+- `npm test` → 129 pasan.
+- `npm run build` → compila al segundo intento, por el aviso de Next.js (M6).
+- gitleaks 8.30.1 sobre todas las ramas → sin hallazgos.
