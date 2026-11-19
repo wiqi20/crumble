@@ -1,12 +1,18 @@
 import type { NextConfig } from "next";
+import { reglasDeCabeceras } from "./server/http/cabeceras";
 
-// Configuración base de Crumble (Etapa 0, E0-1).
-// Las cabeceras de seguridad (CSP, HSTS sin includeSubDomains, nosniff, Referrer-Policy, COOP, CORP,
-// frame-ancestors) y el enrutado por Host (proxy.ts) son de la historia E0-5 (Backend), según
-// docs/proyectos/crumble/diseno-tecnico.md, secciones 5.3 y 5.4, en wiqi20/STICR_landingpage.
+// Configuración de Crumble.
+// - E0-1: Tailwind 4 con el cargador de Turbopack (igual que sticr.app) y sin X-Powered-By.
+// - E0-5: cabeceras de seguridad de 5.3 y 5.4 (CSP sin terceros, HSTS sin includeSubDomains,
+//   nosniff, Referrer-Policy, COOP, CORP, frame-ancestors 'none'); detalle en
+//   server/http/cabeceras.ts. El enrutado por Host está en proxy.ts.
+const desarrollo = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Tailwind 4 con el cargador de Turbopack, igual que sticr.app.
+  async headers() {
+    return reglasDeCabeceras(desarrollo);
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -12,7 +12,7 @@ Las reglas, los estándares y el diseño del proyecto están en el repositorio `
 
 ## Estado
 
-Etapa 0 (preparación): esqueleto del repositorio y CI. La página `/` es provisional y `GET /api/health` responde `{"ok":true}` sin consultar la base todavía.
+Etapa 0 (preparación): esqueleto, CI, configuración validada, migraciones, formato de error, `/api/health` con la base, enrutado por `Host`, cabeceras de seguridad y registro de rutas del panel. La API está en `docs/api.md`.
 
 ## Stack
 
@@ -32,7 +32,19 @@ cp .env.example .env.local # y llena los valores (nunca los subas al repositorio
 npm run dev                # http://localhost:3000
 ```
 
-Comprobación rápida: `http://localhost:3000/api/health` debe responder `{"ok":true}`.
+El servicio **no arranca** si falta una variable o no es válida: dice cuál, sin mostrar valores. En local, `URL_TIENDA` y `URL_PANEL` pueden ser `http://localhost:3000` y `http://127.0.0.1:3000` (dos nombres para la misma máquina: uno abre la tienda y el otro el panel).
+
+```bash
+npm run migrate            # aplica migrations/ a DATABASE_URL (pide confirmación si no es local)
+```
+
+Comprobación rápida: `http://localhost:3000/api/health` debe responder `{"estado":"ok"}`.
+
+### Pruebas con Postgres
+
+`npm test` usa `TEST_DATABASE_URL`: una base **local** cuyo nombre termina en `_test` (por ejemplo `postgresql://usuario@127.0.0.1:5432/crumble_test`). Antes de las pruebas se vacía y se le aplican las migraciones. Sin esa variable, las pruebas con base se omiten (en CI son obligatorias).
+
+Prueba contra un servidor real (cabeceras y enrutado por `Host`), opcional: `npm run build`, arrancar `npm run start` con `URL_TIENDA=https://tienda.prueba.local` y `URL_PANEL=https://panel.prueba.local`, y correr `URL_SERVIDOR_PRUEBA=http://127.0.0.1:3000 npx vitest run tests/servidor`.
 
 ## Scripts
 
@@ -44,7 +56,7 @@ Comprobación rápida: `http://localhost:3000/api/health` debe responder `{"ok":
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Pruebas con Vitest |
-| `npm run migrate` | Aplica las migraciones de `migrations/` (hoy es un marcador; el ejecutor llega en E0-3) |
+| `npm run migrate` | Aplica las migraciones pendientes de `migrations/` (una transacción por archivo, candado, huella). En Railway, como comando previo al despliegue: `npm run migrate -- --si` |
 
 ## Variables de entorno
 

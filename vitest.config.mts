@@ -12,5 +12,9 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
+    // Prepara la base de pruebas (TEST_DATABASE_URL): la vacía y aplica las migraciones (E0-6).
+    globalSetup: ["tests/ayudas/base.ts"],
+    // Las pruebas con base comparten una sola base de pruebas: se corren de un archivo a la vez.
+    fileParallelism: false,
   },
 });
