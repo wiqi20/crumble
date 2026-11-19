@@ -109,6 +109,11 @@ Revisión de Seguridad (`docs/entregas/seguridad-etapa0.md`, rama `docs/segurida
 - `npm run build` → el primer intento se detiene con el aviso de Next.js y el segundo compila sin avisos. No ejecuté `next upgrade`.
 - `next start` (sin `-H`) y `tests/servidor` → **13 de 13**. El panel sale con `private, no-store`; `/%` y `/panel/%ZZ` dan 404 JSON; `tienda.prueba.local:443` sirve la tienda. El registro del servidor no tiene ninguna línea de error.
 - `npm audit --omit=dev --audit-level=high` → sale con 0.
+- **CI de GitHub, ejecución 44503740372 sobre `0396be7`** (después del `pull --rebase` sobre el arreglo QA-E0-01 de Frontend) → **verde**:
+  - Corrió en `ubuntu-26.04` y descargó `postgres:16@sha256:3950ad7c…382f`.
+  - Pruebas: 129 pasan.
+  - Paso nuevo: `tests/servidor` contra `next start`, 13 de 13, y el registro del servidor sin errores.
+  - `secretos` en verde.
 
 **Quedan para después:**
 - **M5:** CSP con nonce en el panel, antes de la etapa 8.
