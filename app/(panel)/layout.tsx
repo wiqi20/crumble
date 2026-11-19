@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function LayoutPanel({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es-CR">
       <body className="flex flex-col">
         <a
           href="#contenido"

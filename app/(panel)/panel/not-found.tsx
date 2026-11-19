@@ -21,7 +21,7 @@ export default function NoEncontradaPanel() {
             Puede que el enlace esté mal escrito o que la página ya no exista.
           </p>
           <Link
-            href="/panel"
+            href="/"
             className="mt-8 inline-flex min-h-11 items-center rounded-md bg-coastal-teal px-6 font-medium text-deep-ink hover:bg-pale-aqua"
           >
             Ir al inicio del panel

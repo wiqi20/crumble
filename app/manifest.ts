@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Crumble cake store",
     short_name: "Crumble",
-    lang: "es",
+    lang: "es-CR",
     start_url: "/",
     display: "browser",
     background_color: "#ffffff",

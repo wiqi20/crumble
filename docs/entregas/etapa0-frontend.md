@@ -85,3 +85,15 @@ La tienda y el panel tienen ya cada uno su layout raíz, sus tokens y sus fuente
 - `@fontsource/onest` 5.3.1: texto del panel (sistema de STI, OFL), la misma versión que sticr.app. Pedida en 11.1.
 - `@fontsource/jetbrains-mono` 5.3.0: cifras y montos del panel (OFL), la misma versión que sticr.app. Pedida en 11.1.
 - Ninguna otra. Los respaldos del ₡ son archivos del repositorio, no paquetes.
+
+## Ajustes tras la integración en `feat/etapa0` (19 nov 2026)
+- `lang="es-CR"` en los dos layouts y en el manifiesto (decisión del PM; responde la primera pregunta).
+- El panel se sirve en la raíz de su dirección (`proxy.ts` de Backend): el enlace del 404 del panel va a `/`. No había otros enlaces internos con `/panel`.
+- El comodín `[...resto]` convive con `app/api/[...resto]/route.ts` de Backend: `/api/nada` y `/api/admin/no-existe` dan 404 JSON `no-encontrado` en la tienda, en el panel y con un Host desconocido. Las páginas inexistentes dan el 404 de su lado, y un Host desconocido da el 404 propio del proxy.
+- Comprobado en la rama integrada:
+  - `npm ci`, lint y tipos sin errores.
+  - `npm test` con un Postgres 16 desechable: 121 pruebas pasan y 10 se omiten (las del servidor real).
+  - `npm run build` compila al segundo intento, por el aviso de Next.js a agentes. No se ejecutó ninguna actualización.
+  - `tests/servidor` contra `npm run start`: 10 de 10.
+  - Playwright por cabecera Host (tienda y panel, a 390 y 1440 px): sin desbordes, `lang="es-CR"`, fuentes propias y cero peticiones externas.
+- Hallazgo menor para QA y SEO: en los 404, el HTML trae el título correcto ("No encontramos esta página · …"), pero en el navegador `document.title` queda con el título por defecto del layout después de cargar.

@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function LayoutTienda({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es-CR">
       <body className="flex flex-col">
         <a
           href="#contenido"

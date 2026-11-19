@@ -72,7 +72,7 @@ describe("identidades de la tienda y del panel", () => {
 describe("manifiesto", () => {
   it("usa los íconos de 192 y 512 px del favicon de Crumble", () => {
     const datos = manifest();
-    expect(datos.lang).toBe("es");
+    expect(datos.lang).toBe("es-CR");
     expect(datos.icons).toEqual([
       { src: "/iconos/icono-192.png", sizes: "192x192", type: "image/png" },
       { src: "/iconos/icono-512.png", sizes: "512x512", type: "image/png" },
