@@ -16,11 +16,21 @@ export type Superficie = "tienda" | "panel";
 export type Decision =
   | { tipo: "seguir"; superficie: Superficie | null }
   | { tipo: "no-encontrado"; api: boolean; hostConocido: boolean; superficie: Superficie | null }
+  /** La ruta trae una codificación que no se puede leer (/%, /panel/%ZZ): 404 propio, sin pasar a Next.js. */
+  | { tipo: "ruta-invalida" }
   | { tipo: "reescribir"; ruta: string; superficie: Superficie };
 
-/** Host en minúsculas, sin punto final (crumble.sticr.app. = crumble.sticr.app). */
+/**
+ * Host en minúsculas, sin punto final y sin el puerto estándar: crumble.sticr.app.,
+ * crumble.sticr.app:443 y crumble.sticr.app:80 son crumble.sticr.app. Un proxy delante puede
+ * mandar el puerto; URL_TIENDA y URL_PANEL nunca lo llevan si es el estándar (URL lo omite).
+ */
 export function normalizarHost(host: string | null | undefined): string {
-  return (host ?? "").trim().toLowerCase().replace(/\.(?=(:\d+)?$)/, "");
+  return (host ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/:(443|80)$/, "")
+    .replace(/\.(?=(:\d+)?$)/, "");
 }
 
 /**
@@ -61,7 +71,7 @@ export function decidir(entrada: { host: string | null; ruta: string; hostTienda
   const superficie: Superficie | null = esTienda ? "tienda" : esDelPanel ? "panel" : null;
   const noEncontrado = (api: boolean): Decision => ({ tipo: "no-encontrado", api, hostConocido, superficie });
 
-  if (ruta === null) return noEncontrado(entrada.ruta.toLowerCase().startsWith("/api"));
+  if (ruta === null) return { tipo: "ruta-invalida" };
   if (esSalud(ruta)) return { tipo: "seguir", superficie };
 
   if (esTienda) {

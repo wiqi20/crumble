@@ -48,6 +48,15 @@ function rutaInterna(peticion: NextRequest, ruta: string, conservarConsulta: boo
   return destino;
 }
 
+/**
+ * El panel no se indexa y NUNCA sale en caché (5.2), aunque Next.js haya prerenderizado la página:
+ * no-store gana sobre el s-maxage de lo estático. La demo tampoco se indexa.
+ */
+function marcarSuperficie(r: NextResponse, superficie: "tienda" | "panel" | null, config: Config) {
+  if (superficie === "panel") r.headers.set("Cache-Control", "private, no-store, max-age=0");
+  if (superficie === "panel" || config.modoDemo) r.headers.set("X-Robots-Tag", "noindex, nofollow");
+}
+
 export function proxy(peticion: NextRequest): NextResponse {
   const id = crypto.randomUUID();
 
@@ -71,6 +80,10 @@ export function proxy(peticion: NextRequest): NextResponse {
     hostPanel: config.hostPanel,
   });
 
+  // Codificación ilegible: se corta aquí con el formato común. Si pasara, Next.js fallaría al
+  // decodificar (500 en inglés y una línea de error en el registro por cada petición).
+  if (decision.tipo === "ruta-invalida") return noEncontrado(true, id);
+
   if (decision.tipo === "no-encontrado") {
     // En una dirección conocida, las páginas muestran el 404 de la aplicación (app/not-found):
     // se reescribe a una carpeta privada ("_"), que Next.js nunca sirve. Host desconocido o API:
@@ -78,7 +91,7 @@ export function proxy(peticion: NextRequest): NextResponse {
     if (decision.hostConocido && !decision.api) {
       const r = NextResponse.rewrite(rutaInterna(peticion, RUTA_NO_ENCONTRADA[decision.superficie ?? "tienda"], false));
       r.headers.set("X-Id-Peticion", id);
-      if (decision.superficie === "panel" || config.modoDemo) r.headers.set("X-Robots-Tag", "noindex, nofollow");
+      marcarSuperficie(r, decision.superficie, config);
       return r;
     }
     return noEncontrado(decision.api, id);
@@ -93,7 +106,7 @@ export function proxy(peticion: NextRequest): NextResponse {
     r = NextResponse.next({ request: { headers: cabecerasPeticion } });
   }
   r.headers.set("X-Id-Peticion", id);
-  if (decision.superficie === "panel" || config.modoDemo) r.headers.set("X-Robots-Tag", "noindex, nofollow");
+  marcarSuperficie(r, decision.superficie, config);
   return r;
 }
 
