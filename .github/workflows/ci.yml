@@ -22,12 +22,15 @@ env:
 jobs:
   verificar:
     name: verificar
-    runs-on: ubuntu-latest
+    # Imagen del runner fija (B6 de la revisión de Seguridad): ubuntu-latest cambia sola de versión.
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     services:
       # Postgres de servicio para las pruebas con base real (E0-6). Solo existe durante el trabajo de CI.
       postgres:
-        image: postgres:16
+        # postgres:16 fijada por resumen (B6). El resumen es el que descargó el CI el 19 nov 2026
+        # (ejecución 44500001661). Para actualizarla, se cambia a propósito en un PR.
+        image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
         env:
           POSTGRES_USER: crumble
           POSTGRES_PASSWORD: solo-para-ci
@@ -69,12 +72,32 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Enrutado por Host, cabeceras, panel sin caché y 404 contra un servidor real (tests/servidor).
+      # Variables de una instalación ficticia: los secretos se generan al azar en cada ejecución.
+      - name: Prueba contra el servidor real (next start + tests/servidor)
+        run: |
+          export URL_TIENDA=https://tienda.prueba.local URL_PANEL=https://panel.prueba.local
+          DATABASE_URL="$TEST_DATABASE_URL" \
+          GOOGLE_CLIENT_ID=prueba GOOGLE_CLIENT_SECRET="$(openssl rand -hex 24)" \
+          SESSION_SECRET="$(openssl rand -hex 32)" IP_HASH_SALT="$(openssl rand -hex 32)" \
+          PROPIETARIA_EMAIL=propietaria@prueba.local RETENCION_PEDIDOS_MESES=24 ESTADO_SERVICIO=activo \
+            npx next start -p 3100 > servidor.log 2>&1 &
+          echo $! > servidor.pid
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null -H 'Host: tienda.prueba.local' http://127.0.0.1:3100/api/health && break
+            sleep 1
+          done
+          URL_SERVIDOR_PRUEBA=http://127.0.0.1:3100 npx vitest run tests/servidor
+          kill "$(cat servidor.pid)"
+          # El servidor no debe registrar errores durante la prueba (p. ej. rutas mal codificadas, B1).
+          if grep -i -E 'error|failed to decode' servidor.log; then echo "El servidor registró errores"; exit 1; fi
+
       - name: Auditoría de dependencias de producción (falla con altas o críticas)
         run: npm audit --omit=dev --audit-level=high
 
   secretos:
     name: secretos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     env:
       GITLEAKS_VERSION: 8.30.1
