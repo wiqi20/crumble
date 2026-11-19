@@ -1,0 +1,123 @@
+# Integración continua de Crumble (Etapa 0, E0-8).
+# Corre en cada rama y en cada PR a main. Si algo falla, el PR no se puede unir
+# (cuando la protección de main exija estas dos verificaciones: "verificar" y "secretos").
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  verificar:
+    name: verificar
+    # Imagen del runner fija (B6 de la revisión de Seguridad): ubuntu-latest cambia sola de versión.
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    services:
+      # Postgres de servicio para las pruebas con base real (E0-6). Solo existe durante el trabajo de CI.
+      postgres:
+        # postgres:16 fijada por resumen (B6). El resumen es el que descargó el CI el 19 nov 2026
+        # (ejecución 44500001661). Para actualizarla, se cambia a propósito en un PR.
+        image: postgres:16@sha256:3950ad7c3148ca2175ef1b6c36c9efbf78957ae8fbe8b3a5d7c35af50500382f
+        env:
+          POSTGRES_USER: crumble
+          POSTGRES_PASSWORD: solo-para-ci
+          POSTGRES_DB: crumble_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crumble -d crumble_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Base desechable del contenedor de arriba; no es un secreto.
+      TEST_DATABASE_URL: postgresql://crumble:solo-para-ci@localhost:5432/crumble_test
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Preparar Node.js 22
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias (npm ci)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Pruebas
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Enrutado por Host, cabeceras, panel sin caché y 404 contra un servidor real (tests/servidor).
+      # Variables de una instalación ficticia: los secretos se generan al azar en cada ejecución.
+      - name: Prueba contra el servidor real (next start + tests/servidor)
+        run: |
+          export URL_TIENDA=https://tienda.prueba.local URL_PANEL=https://panel.prueba.local
+          DATABASE_URL="$TEST_DATABASE_URL" \
+          GOOGLE_CLIENT_ID=prueba GOOGLE_CLIENT_SECRET="$(openssl rand -hex 24)" \
+          SESSION_SECRET="$(openssl rand -hex 32)" IP_HASH_SALT="$(openssl rand -hex 32)" \
+          PROPIETARIA_EMAIL=propietaria@prueba.local RETENCION_PEDIDOS_MESES=24 ESTADO_SERVICIO=activo \
+            npx next start -p 3100 > servidor.log 2>&1 &
+          echo $! > servidor.pid
+          for i in $(seq 1 30); do
+            curl -sf -o /dev/null -H 'Host: tienda.prueba.local' http://127.0.0.1:3100/api/health && break
+            sleep 1
+          done
+          URL_SERVIDOR_PRUEBA=http://127.0.0.1:3100 npx vitest run tests/servidor
+          kill "$(cat servidor.pid)"
+          # El servidor no debe registrar errores durante la prueba (p. ej. rutas mal codificadas, B1).
+          if grep -i -E 'error|failed to decode' servidor.log; then echo "El servidor registró errores"; exit 1; fi
+
+      - name: Auditoría de dependencias de producción (falla con altas o críticas)
+        run: npm audit --omit=dev --audit-level=high
+
+  secretos:
+    name: secretos
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      # sha256 de gitleaks_8.30.1_linux_x64.tar.gz, tomado del archivo de sumas de la versión oficial.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - name: Descargar el código con todo el historial
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Instalar gitleaks (versión fija y suma verificada)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          rm gitleaks.tar.gz
+          ./gitleaks version
+
+      - name: Buscar secretos en todo el historial de git
+        run: ./gitleaks git --redact --no-banner --exit-code 1 .
