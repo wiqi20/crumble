@@ -1,6 +1,6 @@
 // E0-5: enrutado por Host (proxy.ts) y cabeceras de seguridad (next.config.ts).
 import { NextRequest } from "next/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import nextConfig from "@/next.config";
 import { proxy, config as configProxy } from "@/proxy";
 import { reiniciarConfig } from "@/server/config";
@@ -39,7 +39,7 @@ describe("decidir (enrutado por Host)", () => {
     for (const ruta of ["/PANEL", "/Panel/pedidos", "/%70anel", "/%2Fpanel", "//panel", "/api//admin/yo", "/API/Admin/yo", "/api/%61dmin/yo", "/%5Cpanel"]) {
       expect(d("tienda.prueba.local", ruta), ruta).toMatchObject({ tipo: "no-encontrado" });
     }
-    expect(d("tienda.prueba.local", "/%E0%A4%A")).toMatchObject({ tipo: "no-encontrado" });
+    expect(d("tienda.prueba.local", "/%E0%A4%A")).toEqual({ tipo: "ruta-invalida" });
   });
 
   it("panel: la API y los archivos comunes pasan tal cual", () => {
@@ -60,6 +60,16 @@ describe("decidir (enrutado por Host)", () => {
   it("el Host se compara sin mayúsculas y sin punto final", () => {
     expect(normalizarHost("Tienda.Prueba.Local.")).toBe("tienda.prueba.local");
     expect(normalizarHost("localhost.:3000")).toBe("localhost:3000");
+  });
+
+  it("el puerto estándar no cambia el Host (un proxy delante puede mandarlo); otro puerto sí", () => {
+    expect(normalizarHost("tienda.prueba.local:443")).toBe("tienda.prueba.local");
+    expect(normalizarHost("Tienda.Prueba.Local.:443")).toBe("tienda.prueba.local");
+    expect(normalizarHost("tienda.prueba.local:80")).toBe("tienda.prueba.local");
+    expect(d("tienda.prueba.local:443", "/")).toEqual({ tipo: "seguir", superficie: "tienda" });
+    expect(d("panel.prueba.local:443", "/pedidos")).toMatchObject({ tipo: "reescribir", ruta: "/panel/pedidos" });
+    expect(d("tienda.prueba.local:4430", "/")).toMatchObject({ tipo: "no-encontrado", hostConocido: false });
+    expect(d("tienda.prueba.local:44", "/")).toMatchObject({ tipo: "no-encontrado", hostConocido: false });
     expect(d("TIENDA.prueba.local", "/")).toEqual({ tipo: "seguir", superficie: "tienda" });
     expect(normalizarRuta("/%zz")).toBeNull();
   });
@@ -106,6 +116,29 @@ describe("proxy.ts", () => {
     expect(r.headers.get("x-robots-tag")).toBeNull();
   });
 
+  it("panel: nunca sale en caché (M4), ni sus páginas ni su API; la tienda no lo lleva", () => {
+    for (const ruta of ["/", "/pedidos", "/api/admin/yo", "/no-existe"]) {
+      expect(pedir("panel.prueba.local", ruta).headers.get("cache-control"), ruta).toBe("private, no-store, max-age=0");
+    }
+    expect(pedir("tienda.prueba.local", "/").headers.get("cache-control")).toBeNull();
+  });
+
+  it("codificación inválida (B1): 404 propio con el formato común, en las dos direcciones, sin registrar nada", async () => {
+    const espias = (["log", "warn", "error"] as const).map((m) => vi.spyOn(console, m).mockImplementation(() => {}));
+    try {
+      for (const [host, ruta] of [["tienda.prueba.local", "/%"], ["tienda.prueba.local", "/%E0%A4%A"], ["panel.prueba.local", "/panel/%ZZ"], ["tienda.prueba.local", "/panel/%ZZ"]]) {
+        const r = pedir(host, ruta);
+        expect(r.status, ruta).toBe(404);
+        expect(r.headers.get("x-middleware-rewrite")).toBeNull();
+        expect(r.headers.get("cache-control")).toBe("no-store");
+        expect(await r.json()).toEqual({ error: "no-encontrado", mensaje: "No encontramos lo que buscas." });
+      }
+      for (const e of espias) expect(e).not.toHaveBeenCalled();
+    } finally {
+      for (const e of espias) e.mockRestore();
+    }
+  });
+
   it("panel: reescribe a /panel conservando la consulta, con id de petición y noindex", () => {
     const raiz = pedir("panel.prueba.local", "/");
     expect(raiz.headers.get("x-middleware-rewrite")).toBe("https://panel.prueba.local/panel");
@@ -120,7 +153,6 @@ describe("proxy.ts", () => {
 
   it("404 de páginas en una dirección conocida: reescribe al 404 de su lado", () => {
     expect(pedir("tienda.prueba.local", "/panel").headers.get("x-middleware-rewrite")).toBe("https://tienda.prueba.local/_no-encontrado");
-    expect(pedir("panel.prueba.local", "/%E0%A4%A").headers.get("x-middleware-rewrite")).toBe("https://panel.prueba.local/panel/_no-encontrado");
   });
 
   it("en la demo, también la tienda lleva noindex", () => {

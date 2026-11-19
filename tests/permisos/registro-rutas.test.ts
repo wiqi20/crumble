@@ -2,16 +2,16 @@
 // permiso con rutaAdmin; si alguna no lo hace, esta prueba falla y el PR queda en rojo.
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { revisarRutasAdmin, urlDeArchivo } from "../ayudas/registro-rutas";
+import { buscarServerActions, PREFIJO_ADMIN, PREFIJO_PANEL, puedeAtender, revisarRutasAdmin, urlDeArchivo } from "../ayudas/registro-rutas";
 
 const RAIZ = path.resolve(import.meta.dirname, "../..");
 
 describe("registro de rutas de /api/admin", () => {
-  it("la aplicación real: toda ruta de /api/admin declara permiso y sin sesión responde 401", async () => {
+  it("la aplicación real: toda ruta que el panel alcanza declara permiso y sin sesión responde 401", async () => {
     const { metodos, problemas } = await revisarRutasAdmin(path.join(RAIZ, "app"));
     expect(problemas, JSON.stringify(problemas, null, 2)).toEqual([]);
     // En la Etapa 0 todavía no hay rutas del panel; B2 y siguientes las agregan con rutaAdmin.
-    for (const m of metodos) expect(m.ruta.startsWith("/api/admin")).toBe(true);
+    for (const m of metodos) expect(m.ruta.startsWith("/api/admin") || m.ruta.startsWith("/panel")).toBe(true);
   });
 
   it("una ruta de ejemplo sin permiso declarado hace fallar la revisión", async () => {
@@ -20,18 +20,49 @@ describe("registro de rutas de /api/admin", () => {
     expect(resumen).toEqual([
       "* /api/admin/permiso-inventado: el módulo no carga (¿rutaAdmin con un acceso que no está en el catálogo?)",
       "DELETE /api/admin/metodo-mixto: no declara permiso (defínela con rutaAdmin)",
+      "GET /api/[seccion]/[...r]: no declara permiso (defínela con rutaAdmin)",
       "GET /api/admin/marca-falsa: sin sesión responde 200 en vez de 401",
       "GET /api/admin/publica-no-permitida: es pública y no está en RUTAS_ADMIN_PUBLICAS",
       "GET /api/admin/sin-permiso: no declara permiso (defínela con rutaAdmin)",
+      "GET /panel/descarga: es pública y no está en RUTAS_ADMIN_PUBLICAS",
+      "GET /panel/exportar: no declara permiso (defínela con rutaAdmin)",
+      "POST /[[...todo]]: no declara permiso (defínela con rutaAdmin)",
+      "POST /api/[...resto]: el 404 de la API debe responder 404 y nada más",
       "PUT /api/admin/en-grupo: no declara permiso (defínela con rutaAdmin)",
     ]);
-    // Las bien declaradas pasan; las de fuera de /api/admin no se revisan.
+    // Las bien declaradas pasan; las de fuera de /api/admin y /panel no se revisan.
     expect(metodos.map((m) => `${m.metodo} ${m.ruta} ${m.acceso}`).sort()).toEqual([
       "GET /api/admin/auth/google publica",
       "GET /api/admin/con-permiso pedidos.ver",
       "GET /api/admin/metodo-mixto inventario.ver",
+      "GET /panel/bien pedidos.ver",
       "POST /api/admin/con-permiso sesion",
     ]);
+  });
+
+  it("qué patrones puede alcanzar el panel", () => {
+    expect(puedeAtender("/api/admin/yo", PREFIJO_ADMIN)).toBe(true);
+    expect(puedeAtender("/api/[x]/yo", PREFIJO_ADMIN)).toBe(true);
+    expect(puedeAtender("/api/[...r]", PREFIJO_ADMIN)).toBe(true);
+    expect(puedeAtender("/[a]/[b]", PREFIJO_ADMIN)).toBe(true);
+    expect(puedeAtender("/[[...x]]", PREFIJO_PANEL)).toBe(true);
+    expect(puedeAtender("/[a]", PREFIJO_PANEL)).toBe(true);
+    expect(puedeAtender("/api", PREFIJO_ADMIN)).toBe(false);
+    expect(puedeAtender("/api/tienda", PREFIJO_ADMIN)).toBe(false);
+    expect(puedeAtender("/api/tienda/[x]", PREFIJO_ADMIN)).toBe(false);
+    expect(puedeAtender("/api/health", PREFIJO_PANEL)).toBe(false);
+    expect(puedeAtender("/imagenes/[id]/[ancho]", PREFIJO_PANEL)).toBe(false);
+    expect(puedeAtender("/api/Admin/x", PREFIJO_ADMIN)).toBe(false);
+  });
+
+  it("no hay Server Actions en app, components, server ni lib (toda escritura va por la API)", async () => {
+    const reales = await buscarServerActions(["app", "components", "server", "lib"].map((c) => path.join(RAIZ, c)));
+    expect(reales).toEqual([]);
+  });
+
+  it("la búsqueda de Server Actions encuentra la directiva al inicio y dentro de una función, y no en comentarios", async () => {
+    const encontrados = await buscarServerActions([path.join(import.meta.dirname, "ejemplos", "acciones")]);
+    expect(encontrados.map((a) => path.basename(a))).toEqual(["en-funcion.ts", "guardar.ts"]);
   });
 
   it("calcula la URL sin grupos de rutas y omite las carpetas privadas", () => {

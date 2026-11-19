@@ -9,10 +9,14 @@ Una sola aplicación atiende dos direcciones por instalación (`URL_TIENDA` y `U
 | Host | Qué sirve |
 | --- | --- |
 | Tienda (`crumble.sticr.app`) | Páginas de la tienda y la API pública. `/panel` y `/api/admin/*` → 404 |
-| Panel (`crumble-admin.sticr.app`) | El panel **en la raíz**: `/pedidos` se reescribe por dentro a `/panel/pedidos`. La API (`/api/*`, incluida `/api/admin/*`), `/imagenes/*` e íconos pasan tal cual. Lleva `X-Robots-Tag: noindex, nofollow` |
+| Panel (`crumble-admin.sticr.app`) | El panel **en la raíz**: `/pedidos` se reescribe por dentro a `/panel/pedidos`. La API (`/api/*`, incluida `/api/admin/*`), `/imagenes/*` e íconos pasan tal cual. Toda respuesta lleva `X-Robots-Tag: noindex, nofollow` y `Cache-Control: private, no-store, max-age=0` (nunca en caché, aunque la página esté prerenderizada) |
 | Cualquier otro | 404. Única excepción: `GET /api/health` (prueba de salud de Railway) |
 
 En la demo (`MODO_DEMO=true`), la tienda también lleva `X-Robots-Tag: noindex, nofollow`.
+
+- El `Host` se compara sin mayúsculas, sin punto final y sin el puerto estándar (`:443` o `:80`); otro puerto es un Host desconocido.
+- Una ruta con codificación ilegible (`/%`, `/panel/%ZZ`) responde 404 JSON `no-encontrado` desde el proxy, en las dos direcciones, sin llegar a Next.js ni escribir en el registro.
+- Las respuestas reescritas llevan `x-middleware-rewrite` (y, en peticiones RSC, `x-nextjs-rewritten-path`). Las pone Next.js después del proxy y el enrutador del navegador las necesita; no se pueden quitar desde la aplicación. Revelan solo la ruta interna (`/panel/...`), no dan acceso a nada.
 
 ## Convenciones
 
@@ -52,7 +56,8 @@ export const GET = rutaAdmin("pedidos.ver", async (peticion, contexto, usuario) 
 ```
 
 - El acceso es un permiso del catálogo (`server/auth/permisos.ts`, sección 5.4), `"sesion"` (cualquier usuario con sesión) o `"publica"` (solo las rutas de inicio de sesión: `/api/admin/auth/google`, `/api/admin/auth/google/callback` y `/api/admin/auth/demo`).
-- La prueba `tests/permisos/registro-rutas.test.ts` recorre `app/api/admin` y falla si un método exportado no se definió con `rutaAdmin`, si declara un permiso fuera del catálogo, si es público sin estar en esa lista o si sin sesión responde algo distinto de 401.
+- La prueba `tests/permisos/registro-rutas.test.ts` recorre **todo** `route.ts` de `app` que el panel pueda alcanzar: los que pueden atender `/api/admin/...` (también por segmentos dinámicos como `api/[x]/[...r]`) y los que pueden atender `/panel/...` (por ejemplo, una descarga en `app/(panel)/panel/exportar/route.ts`). Falla si un método exportado no se definió con `rutaAdmin`, si declara un permiso fuera del catálogo, si es público sin estar en esa lista (en `/panel/...` nada puede ser público) o si sin sesión responde algo distinto de 401. `api/[...resto]` está exceptuada y solo debe responder 404.
+- No se usan Server Actions (`"use server"`): la misma prueba falla si aparecen en `app`, `components`, `server` o `lib`. Toda escritura va por `app/api`.
 - Las respuestas del panel van con `Cache-Control: no-store`.
 - **Etapa 0:** todavía no hay sesión (B2) ni lectura de permisos (B3): la puerta falla cerrada y toda ruta no pública responde `401 sin-sesion`.
 

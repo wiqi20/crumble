@@ -88,3 +88,36 @@ Con un Postgres 16 desechable levantado para esta tarea (127.0.0.1, puerto y car
 
 ## Dependencias nuevas
 - Ninguna. Se usan `pg`, `zod` y `next`, que ya estaban.
+
+## Correcciones tras la revisión
+
+Revisión de Seguridad (`docs/entregas/seguridad-etapa0.md`, rama `docs/seguridad-etapa0`) y de QA (`docs/entregas/qa-etapa0.md`, rama `docs/qa-etapa0`) sobre `feat/etapa0` en `9c40f62`. Corregido el 19 nov 2026 en `feat/etapa0`.
+
+| Hallazgo | Qué se hizo | Prueba |
+| --- | --- | --- |
+| **M4.** El panel salía con `s-maxage=31536000` | `proxy.ts` pone `Cache-Control: private, no-store, max-age=0` en **toda** respuesta del panel (páginas, 404 y API). Contra el servidor real, gana sobre el `s-maxage` de la página prerenderizada. No toqué el layout del panel, que es de Frontend (ver pendientes) | `tests/unit/enrutado.test.ts` y `tests/servidor` ("M4") |
+| **B1.** `/%`, `/%E0%A4%A` y `/panel/%ZZ` daban 500 en inglés y una línea de error en el registro por petición | `decidir` devuelve `ruta-invalida` y el proxy responde 404 JSON `no-encontrado` (formato común, cabeceras de seguridad, `no-store`) sin pasar a Next.js. Las dos direcciones | Pruebas unitarias (no se escribe nada en la consola) y `tests/servidor`. El registro del servidor real quedó sin errores. En CI, el paso nuevo falla si el servidor registra un error |
+| **QA, observación del puerto.** `tienda.prueba.local:443` daba 404 | `normalizarHost` quita `:443` y `:80`. Otro puerto sigue siendo Host desconocido | Unitarias y `tests/servidor` |
+| **B2.** Se exponen `x-middleware-rewrite` y `x-nextjs-rewritten-path` | **No se puede quitar desde la aplicación.** Next.js 16.4.3 las agrega después del proxy (`server/lib/router-utils/resolve-routes.js`), y el enrutador del navegador las usa en las peticiones RSC: quitarlas rompería la navegación del panel. Queda documentado en `docs/api.md`. Si se quiere, se podría filtrar `x-middleware-rewrite` en la plataforma para peticiones que no son RSC | No aplica |
+| **M3.** Puntos ciegos del revisor de rutas | El revisor recorre todo `route.ts` y revisa los que pueden atender `/api/admin/...` o `/panel/...`, también con `[x]`, `[...x]` y `[[...x]]` (función `puedeAtender`). En `/panel/...` nada puede ser público. `api/[...resto]` está exceptuada, pero debe responder 404. Nueva búsqueda de `"use server"` en `app`, `components`, `server` y `lib` (al inicio del archivo o dentro de una función). Ejemplos nuevos: los dos casos de ataque de Seguridad (`app/(panel)/panel/exportar/route.ts` y `app/api/[seccion]/[...r]/route.ts`), una descarga del panel pública, un comodín opcional en la raíz, un 404 de la API que responde 200 en POST, y dos Server Actions | `tests/permisos/registro-rutas.test.ts`: 11 problemas detectados en los ejemplos, 0 en la aplicación real, y casos de `puedeAtender` |
+| **B5.** La guarda aceptaba `postgresql:///x_test` (sin host: pg usaría `PGHOST`) | Exige el host explícito `localhost` o `127.0.0.1` | `tests/api/migraciones.test.ts` (sin host, sin host con usuario e IPv6 se rechazan) |
+| **B6.** CI sin fijar y sin `tests/servidor` | `runs-on: ubuntu-26.04` (la imagen con que corre hoy `ubuntu-latest`). `postgres:16@sha256:3950ad7c…382f`: el resumen que descargó el CI en la ejecución 44500001661, porque desde aquí no hay acceso a Docker Hub. Paso nuevo tras el build: `next start` con una instalación ficticia (secretos con `openssl rand`), `tests/servidor` y fallo si el servidor registró errores | El CI de esta corrección (abajo) |
+
+**Cómo se comprobó** (worktree propio desde `origin/feat/etapa0`; Postgres 16 desechable en `/var/lib/postgresql/<nombre único>` y puerto único, ya apagado y borrado):
+- `npm run lint` y `npm run typecheck` → sin errores.
+- `npm test` con `TEST_DATABASE_URL` → 10 archivos, **129 pasan** y las 13 de servidor real se omiten.
+- `npm run build` → el primer intento se detiene con el aviso de Next.js y el segundo compila sin avisos. No ejecuté `next upgrade`.
+- `next start` (sin `-H`) y `tests/servidor` → **13 de 13**. El panel sale con `private, no-store`; `/%` y `/panel/%ZZ` dan 404 JSON; `tienda.prueba.local:443` sirve la tienda. El registro del servidor no tiene ninguna línea de error.
+- `npm audit --omit=dev --audit-level=high` → sale con 0.
+- **CI de GitHub, ejecución 44503740372 sobre `0396be7`** (después del `pull --rebase` sobre el arreglo QA-E0-01 de Frontend) → **verde**:
+  - Corrió en `ubuntu-26.04` y descargó `postgres:16@sha256:3950ad7c…382f`.
+  - Pruebas: 129 pasan.
+  - Paso nuevo: `tests/servidor` contra `next start`, 13 de 13, y el registro del servidor sin errores.
+  - `secretos` en verde.
+
+**Quedan para después:**
+- **M5:** CSP con nonce en el panel, antes de la etapa 8.
+- **M6:** subir `next` a 16.4.6, decisión del PM, antes de la primera historia con `'use cache'`.
+- **B3** (migraciones) y **B4** (variedad y repetición de secretos), cuando convenga.
+- **Para Frontend (recomendación):** además del `no-store` del proxy, conviene que el layout del panel sea dinámico (`export const dynamic = "force-dynamic"` según la guía). Así el servidor tampoco guarda el armazón como prerender (hoy responde `x-nextjs-cache: HIT`, aunque el navegador y cualquier caché compartida reciben `no-store`).
+- **M1** (repositorio público) y **M2** (protección de `main`) son del dueño, antes de E0-9.
