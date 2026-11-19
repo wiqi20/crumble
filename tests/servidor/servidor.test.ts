@@ -110,6 +110,33 @@ describe.skipIf(!SERVIDOR)("servidor real: enrutado por Host y cabeceras", () =>
     expect((await pedir("otro.sticr.app", "/")).cuerpo).toContain('data-origen="proxy"');
   });
 
+  it("M4: el panel nunca sale en caché, aunque la página esté prerenderizada", async () => {
+    for (const ruta of ["/", "/pedidos", "/api/health"]) {
+      const r = await pedir("panel.prueba.local", ruta);
+      expect(r.cabeceras["cache-control"], ruta).toMatch(/no-store/);
+      expect(r.cabeceras["cache-control"], ruta).not.toMatch(/s-maxage|public/);
+    }
+  });
+
+  it("B1: una ruta con codificación inválida da 404 JSON en español en las dos direcciones", async () => {
+    for (const [host, ruta] of [["tienda.prueba.local", "/%"], ["tienda.prueba.local", "/%E0%A4%A"], ["panel.prueba.local", "/panel/%ZZ"], ["tienda.prueba.local", "/panel/%ZZ"]]) {
+      const r = await pedir(host, ruta);
+      expect(r.estado, `${host}${ruta}`).toBe(404);
+      expect(JSON.parse(r.cuerpo)).toEqual({ error: "no-encontrado", mensaje: "No encontramos lo que buscas." });
+      tieneCabecerasDeSeguridad(r);
+    }
+  });
+
+  it("un Host con el puerto estándar se atiende como su dirección", async () => {
+    const tienda = await pedir("tienda.prueba.local:443", "/");
+    expect(tienda.estado).toBe(200);
+    expect(tienda.cuerpo).not.toContain('data-origen="proxy"');
+    const panel = await pedir("panel.prueba.local:443", "/");
+    expect(panel.cabeceras["x-robots-tag"]).toBe("noindex, nofollow");
+    expect(panel.cuerpo).not.toContain('data-origen="proxy"');
+    expect((await pedir("tienda.prueba.local:8443", "/")).estado).toBe(404);
+  });
+
   it("estado del pedido: Referrer-Policy no-referrer", async () => {
     const r = await pedir("tienda.prueba.local", "/pedido/un-token");
     expect(r.cabeceras["referrer-policy"]).toBe("no-referrer");

@@ -14,7 +14,7 @@ import { describeDb, TEST_DB } from "../ayudas/entorno";
 const entornoMinimo = (extra: Record<string, string>): NodeJS.ProcessEnv => ({ PATH: process.env.PATH, NODE_ENV: "test", ...extra });
 
 describe("guarda de la base de pruebas", () => {
-  it.each(["postgresql://u@localhost:5432/crumble_test", "postgresql://u@127.0.0.1/crumble_test", "postgres://u:p@[::1]:5432/otra_test", "postgresql:///crumble_test"])(
+  it.each(["postgresql://u@localhost:5432/crumble_test", "postgresql://u@127.0.0.1/crumble_test", "postgres://u:p@localhost:5432/otra_test"])(
     "acepta %s",
     (url) => expect(esBaseLocalDePrueba(url, "postgresql://u@db.real/railway")).toBe(true),
   );
@@ -30,6 +30,9 @@ describe("guarda de la base de pruebas", () => {
     ["host parecido a localhost", "postgresql://u@localhost.evil.example/crumble_test"],
     ["no es URL", "no es url"],
     ["otro protocolo", "mysql://u@localhost/crumble_test"],
+    ["sin host (pg usaría PGHOST)", "postgresql:///crumble_test"],
+    ["sin host con usuario", "postgresql://u@/crumble_test"],
+    ["IPv6 local (solo localhost o 127.0.0.1)", "postgres://u:p@[::1]:5432/otra_test"],
   ])("rechaza %s", (_n, url) => expect(esBaseLocalDePrueba(url, undefined)).toBe(false));
 
   it("rechaza la misma dirección que DATABASE_URL", () => {
